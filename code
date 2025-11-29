@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ore Mine Clickin' - Auto-Clicker & Dev Max Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for sound and music -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <style>
+        /* Implemented "Rocky but Bubbly" Fonts: Luckiest Guy for titles, Changa for body */
+        @import url('https://fonts.googleapis.com/css2?family=Changa:wght@400;700&family=Luckiest+Guy&display=swap');
+        
+        body {
+            font-family: 'Changa', sans-serif; /* Set Changa as the main body font */
+            background-color: #0d0d0d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            cursor: default; /* Set to standard system arrow cursor globally */
+        }
+        .game-container {
+            max-width: 600px;
+            width: 100%;
+            padding: 1.5rem;
+            background-color: #1a1a1a;
+            border: 4px solid #4a4a4a;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        /* New Bubbly Rock Texture Style for the Title with Moss Effect */
+        .rock-text-bubbly {
+            font-family: 'Luckiest Guy', cursive;
+            color: #ffd700; /* Gold-like base color (Rock highlight) */
+            /* Multi-layered text shadow for a chiseled, rocky, and 3D effect */
+            text-shadow: 
+                -4px -4px 0 #3b3b3b, /* Deep shadow for depth/emboss */
+                4px 4px 0 #333333,
+                1px 1px 0 #888888, /* Highlight/Chisel Edge */
+                -1px -1px 0 #555555,
+                /* MOSS EFFECT: Thin green layers on top-left edges */
+                -2px -2px 0 #4c7c4c, /* Darker base moss */
+                -1px -1px 0 #6aa84f, /* Lighter moss highlight */
+                0 0 10px #facc15; /* Amber glow */
+            line-height: 1.1;
+            letter-spacing: 2px;
+        }
+
+        /* --- STONE BLOCK STYLING - MORE ROCKY --- */
+        .block {
+            cursor: pointer; /* Ensures the hand pointer is used for the clickable element */
+            transition: transform 0.1s ease-out, opacity 0.5s; 
+            user-select: none;
+            touch-action: manipulation;
+            
+            /* Base stone color - darker and more dull */
+            background-color: #383838; 
+            
+            /* More aggressive, varied shadow and texture for a chiseled stone look */
+            box-shadow: 
+                inset 0 0 15px rgba(0, 0, 0, 0.9), /* Deeper inner shadow */
+                0 6px 12px rgba(0, 0, 0, 0.8), /* Stronger bottom shadow */
+                inset 5px 5px 10px rgba(70, 70, 70, 0.3), /* Chisel highlight top-left */
+                inset -5px -5px 10px rgba(0, 0, 0, 0.5); /* Deep shadow bottom-right */
+            
+            /* Subtle rough noise texture via CSS gradients */
+            background-image: repeating-linear-gradient(45deg, #444 0, #444 1px, transparent 1px, transparent 2px),
+                              radial-gradient(circle at center, rgba(120, 120, 120, 0.1) 10%, transparent 60%);
+            background-size: 4px 4px, 20px 20px;
+        }
+        
+        .block-face {
+            /* This div wraps the text and health, making it appear 'embedded' */
+            background-color: rgba(30, 30, 30, 0.6); /* Slightly darker, transparent background for readability */
+            padding: 10px;
+            border-radius: 0.5rem;
+            border: 2px solid #555;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5) inset;
+        }
+
+        .block:active {
+            transform: scale(0.98);
+        }
+        .health-bar-container {
+            height: 8px;
+            background-color: #555;
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+        .health-bar {
+            height: 100%;
+            background-color: #34d399; /* Emerald Green */
+            transition: width 0.1s ease-out;
+        }
+        .pickaxe-button {
+            transition: all 0.2s;
+        }
+        .pickaxe-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(74, 222, 128, 0.4);
+        }
+        .pickaxe-button:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        .crit-text {
+            position: absolute;
+            font-size: 2rem;
+            color: #ffcc00; /* Gold */
+            text-shadow: 0 0 10px red;
+            animation: floatup 0.8s ease-out forwards;
+            font-family: 'Luckiest Guy', cursive;
+        }
+        @keyframes floatup {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-50px); }
+        }
+
+        /* --- Pickaxe Hit Animation Styles --- */
+        @keyframes pickaxeHit {
+            0% { opacity: 1; transform: translate(-50%, -50%) rotate(-30deg) scale(0.8); }
+            20% { opacity: 1; transform: translate(-50%, -50%) rotate(10deg) scale(1.1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) rotate(60deg) scale(0.5); }
+        }
+        .pickaxe-animation {
+            position: absolute;
+            pointer-events: none;
+            width: 40px; /* Size of the pickaxe */
+            height: 40px;
+            animation: pickaxeHit 0.3s ease-out forwards;
+            z-index: 50;
+        }
+
+        /* --- Rock Pop-out Animation Styles --- */
+        @keyframes rockFragmentPop {
+            0% { opacity: 1; transform: translate(0, 0) scale(1); }
+            100% { opacity: 0; transform: translate(var(--end-x), var(--end-y)) scale(0.2); }
+        }
+        .rock-fragment-animation {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: #a3a3a3; /* Light gray rock color */
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 60;
+            animation: rockFragmentPop 0.5s ease-out forwards;
+        }
+
+        .rebirth-button:hover:not(:disabled) {
+            background-image: linear-gradient(to right, #f59e0b, #eab308);
+            box-shadow: 0 4px 15px rgba(251, 191, 36, 0.6);
+        }
+        
+        /* NEW: Tiny Control Panel Styling */
+        .dev-control-button {
+            padding: 0.25rem 0.5rem; /* Tiny padding */
+            font-size: 0.75rem; /* Text-xs */
+            line-height: 1rem;
+            border-radius: 0.375rem; /* rounded-md */
+            transition: background-color 0.1s;
+        }
+        .dev-input {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            border-radius: 0.375rem;
+            border: 1px solid #4a4a4a;
+            background-color: #2a2a2a;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    
+    <div class="game-container">
+        <!-- Applied new rock-text-bubbly style to the title -->
+        <h1 class="rock-text-bubbly text-3xl font-bold text-center text-emerald-400">Ore Mine Clickin' - Auto-Clicker & Dev Max Edition</h1>
+
+        <!-- Tutorial Card -->
+        <div id="tutorialCard" class="bg-blue-900/50 border border-blue-700 p-4 rounded-lg">
+            <h2 class="text-xl font-bold text-blue-300 mb-2">Welcome, Miner!</h2>
+            <p class="text-sm text-gray-200 mb-3">
+                Your goal is to click the ore block to mine it and earn Score. Spend Score on **Pickaxe Upgrades** (manual clicks) and **Auto-Clickers** (passive damage per second). Watch out for the rare **Troll** ($1\%$ score loss) and **777 Jackpot** ($1\%$ massive reward). Purchase **Permanent Power Cores** for a massive boost! Use the Rebirth option to reset progress and gain a permanent Score Multiplier.
+            </p>
+            <button id="dismissTutorialButton" class="w-full py-1 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">Got It!</button>
+        </div>
+
+        <!-- Stats Card -->
+        <div id="stats" class="text-center text-gray-300 p-3 bg-gray-700 rounded-lg">
+            <p class="text-xl">Score: <span id="scoreValue" class="font-extrabold text-white">0</span></p>
+            <div class="flex justify-around mt-2 text-sm">
+                <p>Pickaxe Damage: <span id="damageValue" class="font-bold text-yellow-300">3</span></p>
+                <p>Auto-Damage: <span id="autoDamageValue" class="font-bold text-cyan-300">0</span>/s</p>
+                <p>Rebirth Multiplier: <span id="multiplierValue" class="font-bold text-red-400">1.0x</span></p>
+            </div>
+        </div>
+
+        <!-- Block Display -->
+        <div id="blockArea" class="p-4 bg-gray-800 rounded-lg flex flex-col items-center justify-center relative">
+            <!-- Current Block (Dynamically updated) -->
+        </div>
+        
+        <!-- Shop Card Container -->
+        <div id="shop" class="text-center text-gray-300 p-3 bg-gray-800 rounded-lg border border-gray-600 flex flex-col gap-3">
+            <h3 class="text-xl font-bold text-green-300 mb-1">Manual & Passive Upgrades Shop</h3>
+
+            <!-- Pickaxe Damage Boost Section (Manual Clicks) -->
+            <div class="p-3 bg-green-900/50 rounded-lg border border-green-700">
+                <h4 class="text-lg font-semibold text-green-300 mb-2">Buy Pickaxe Boost (Manual +<span id="damageBoostValue">3</span> Dmg)</h4>
+                <button id="upgradePickaxeButton" class="pickaxe-button w-full py-2 px-4 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 disabled:opacity-50" disabled>
+                    Buy Upgrade (Cost: <span id="upgradeCost">100</span> Score)
+                </button>
+                <p class="mt-2 text-sm text-green-400">Level: <span id="pickaxeLevelValue">0</span> | Crit Chance: <span id="critChanceValue">10</span>% (3x Damage)</p>
+            </div>
+            
+            <!-- NEW Auto-Clicker Section (Passive Damage) -->
+            <div class="p-3 bg-cyan-900/50 rounded-lg border border-cyan-700">
+                <h4 class="text-lg font-semibold text-cyan-300 mb-2">Buy Auto-Clicker (+1 Passive Damage/s)</h4>
+                <button id="upgradeAutoClickerButton" class="pickaxe-button w-full py-2 px-4 bg-cyan-600 text-white font-bold rounded-lg shadow-md hover:bg-cyan-700 disabled:opacity-50" disabled>
+                    Buy Auto-Clicker (Cost: <span id="autoClickerCost">500</span> Score)
+                </button>
+                <p class="mt-2 text-sm text-cyan-400">Level: <span id="autoClickerLevelValue">0</span> | Passive Damage: <span id="autoClickerDamageValue">0</span>/s</p>
+            </div>
+            
+            <!-- Permanent Power Core Section -->
+            <div class="p-3 bg-blue-900/50 rounded-lg border border-blue-700">
+                <h4 class="text-lg font-semibold text-blue-300 mb-2">Permanent Power Core (1.5x Dmg/Crit)</h4>
+                <button id="upgradePowerCoreButton" class="pickaxe-button w-full py-2 px-4 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50" disabled>
+                    Buy Power Core (Cost: 50,000 Score)
+                </button>
+                <p class="mt-2 text-sm text-blue-400">Current Power Multiplier: <span id="powerCoreMultiplierValue">1.0x</span></p>
+                <p class="text-xs text-blue-400">Total Purchases: <span id="powerCoreUpgradesCount">0</span></p>
+            </div>
+
+            <!-- Rebirth Section -->
+            <div class="p-3 bg-red-900/50 rounded-lg border border-red-700">
+                <h4 class="text-lg font-semibold text-red-300 mb-2">Rebirth! (<span id="rebirthsCount">0</span> Times)</h4>
+                <p class="text-sm text-red-300 mb-2">Current Score Multiplier: <span id="rebirthMultiplierEffect">1.0x</span></p>
+                <button id="rebirthButton" class="rebirth-button w-full py-2 px-4 bg-yellow-600 text-gray-900 font-extrabold rounded-lg shadow-md disabled:opacity-50" disabled>
+                    Rebirth (Cost: <span id="rebirthCost">100,000</span> Score)
+                </button>
+                <p class="mt-2 text-xs text-red-400">Resets everything but permanently multiplies score rewards by 1.5x.</p>
+            </div>
+        </div>
+
+        <button id="resetButton" class="pickaxe-button w-full py-3 px-4 bg-red-600 text-white font-bold rounded-lg shadow-xl hover:bg-red-700">
+            Hard Reset Game (No Bonus)
+        </button>
+        
+        <!-- Control Panel with Password Protection -->
+        <div id="devControls" class="p-2 bg-gray-900 rounded-lg border border-gray-700 flex flex-wrap justify-center items-center space-x-2 space-y-1">
+            <p class="text-xs text-gray-500 self-center">Dev Tools:</p>
+            
+            <!-- Password Input Group -->
+            <!-- Console logging enabled via JS listener on 'input' event -->
+            <input type="password" id="devPassword" placeholder="Enter password" class="dev-input w-28">
+            <button id="unlockDevButton" class="dev-control-button bg-indigo-700 text-white hover:bg-indigo-600">
+                Unlock
+            </button>
+            
+            <!-- Cheat Buttons (Initially Hidden) -->
+            <div id="cheatButtons" class="flex flex-wrap justify-center space-x-2 space-y-1" style="display: none;">
+                <button id="addScoreButton" class="dev-control-button bg-green-700 text-white hover:bg-green-600">
+                    Add 50K Score
+                </button>
+                <button id="skipLevelButton" class="dev-control-button bg-sky-700 text-white hover:bg-sky-600">
+                    Skip Level
+                </button>
+                <button id="doubleScoreButton" class="dev-control-button bg-purple-700 text-white hover:bg-purple-600">
+                    Double Score
+                </button>
+                <!-- Max All Button -->
+                <button id="maxAllButton" class="dev-control-button bg-yellow-600 text-gray-900 font-bold hover:bg-yellow-500">
+                    MAX ALL (x1000)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Configuration Parameters ---
+        let blockLevel = 1;
+        let pickaxeLevel = 0; // Number of manual upgrades purchased
+        let autoClickerLevel = 0; // NEW: Number of auto-clicker upgrades
+        let scoreMultiplier = 1.0; 
+        let rebirths = 0;
+        let powerCoreUpgrades = 0; 
+        
+        const PICKAXE_IMAGE_URL = 'uploaded:pickaxe.webp-c610cf1e-99ac-4f3b-b984-45b5eb060224'; 
+
+        // Continuous Upgrade System Config
+        const PICKAXE_BASE_DAMAGE = 3;
+        const UPGRADE_BASE_COST = 100;
+        const UPGRADE_COST_MULTIPLIER = 1.35; 
+        const UPGRADE_DAMAGE_BOOST = 3;
+        
+        // NEW Auto-Clicker Config
+        const AUTO_CLICKER_BASE_COST = 500;
+        const AUTO_CLICKER_COST_MULTIPLIER = 1.25;
+        const AUTO_CLICKER_DAMAGE_BOOST = 1; // +1 damage per second
+        
+        // Crit Hit Configuration
+        let CRIT_CHANCE = 0.1; 
+        const CRIT_MULTIPLIER = 3; 
+        
+        // Special Block Configuration
+        const TROLL_CHANCE = 0.01; 
+        const TROLL_DEDUCTION_PERCENT = 0.05; 
+        const SEVEN_SEVEN_SEVEN_CHANCE = 0.01; 
+        const SEVEN_SEVEN_SEVEN_MULTIPLIER = 5; 
+        
+        // Permanent Power Core Config
+        const PERM_CORE_COST = 50000;
+        const PERM_CORE_DMG_MULTIPLIER_BOOST = 1.5; 
+        
+        // Rebirth Config
+        const REBIRTH_BASE_COST = 100000;
+        const REBIRTH_COST_MULTIPLIER = 5; 
+        const REBIRTH_MULTIPLIER_BOOST = 1.5; 
+
+        const BASE_BLOCK_HEALTH = 10;
+        const HEALTH_SCALING = 5; 
+        const BASE_SCORE_REWARD = 10;
+        const SCORE_SCALING = 5; 
+        
+        // Current volatile stats (affected by permanent multipliers)
+        let PICKAXE_DAMAGE = PICKAXE_BASE_DAMAGE; 
+        let AUTO_CLICKER_DAMAGE = 0; // NEW: Passive damage/sec
+        
+        let isAudioReady = false;
+
+        // Block state 
+        let currentBlockType = 'Standard'; 
+        
+        // Total Damage and Crit Multipliers
+        let totalDamageMultiplier = 1.0;
+        let totalCritMultiplier = 1.0;
+
+        // Dev Password & Max Level
+        const DEV_PASSWORD = 'tung tung tung sahur';
+        const MAX_LEVEL = 1000;
+
+
+        // --- Game State & DOM Elements ---
+        let currentHealth = 0;
+        let maxHealth = 0; 
+        let score = 0;
+        let blockElement = null;
+        let healthBarElement = null;
+
+        const scoreValueElement = document.getElementById('scoreValue');
+        const damageValueElement = document.getElementById('damageValue');
+        const autoDamageValueElement = document.getElementById('autoDamageValue'); // NEW
+        const pickaxeLevelValueElement = document.getElementById('pickaxeLevelValue');
+        const multiplierValueElement = document.getElementById('multiplierValue');
+        const blockArea = document.getElementById('blockArea');
+        const resetButton = document.getElementById('resetButton');
+        
+        // Shop Elements (Pickaxe)
+        const upgradePickaxeButton = document.getElementById('upgradePickaxeButton');
+        const upgradeCostElement = document.getElementById('upgradeCost');
+        const damageBoostValueElement = document.getElementById('damageBoostValue');
+        
+        // Shop Elements (Auto-Clicker)
+        const upgradeAutoClickerButton = document.getElementById('upgradeAutoClickerButton');
+        const autoClickerCostElement = document.getElementById('autoClickerCost');
+        const autoClickerLevelValueElement = document.getElementById('autoClickerLevelValue');
+        const autoClickerDamageValueElement = document.getElementById('autoClickerDamageValue');
+
+        // Power Core Elements
+        const upgradePowerCoreButton = document.getElementById('upgradePowerCoreButton');
+        const powerCoreMultiplierValueElement = document.getElementById('powerCoreMultiplierValue');
+        const powerCoreUpgradesCountElement = document.getElementById('powerCoreUpgradesCount');
+
+        // Rebirth Elements
+        const rebirthButton = document.getElementById('rebirthButton');
+        const rebirthCostElement = document.getElementById('rebirthCost');
+        const rebirthsCountElement = document.getElementById('rebirthsCount');
+        const rebirthMultiplierEffectElement = document.getElementById('rebirthMultiplierEffect');
+
+        // Tutorial Elements
+        const tutorialCard = document.getElementById('tutorialCard');
+        const dismissTutorialButton = document.getElementById('dismissTutorialButton');
+        const critChanceValueElement = document.getElementById('critChanceValue');
+        
+        // Dev Controls Elements
+        const unlockDevButton = document.getElementById('unlockDevButton');
+        const devPasswordInput = document.getElementById('devPassword');
+        const cheatButtonsContainer = document.getElementById('cheatButtons');
+        const addScoreButton = document.getElementById('addScoreButton');
+        const skipLevelButton = document.getElementById('skipLevelButton');
+        const maxAllButton = document.getElementById('maxAllButton');
+        const doubleScoreButton = document.getElementById('doubleScoreButton'); 
+
+
+        // --- Tone.js Audio Setup ---
+        const metalSynth = new Tone.MetalSynth({ frequency: 200, envelope: { attack: 0.001, decay: 0.15, release: 0.1 }, harmonicity: 3.1, modulationIndex: 10, resonance: 4000, octaves: 1.5 }).toDestination();
+        const pluckSynth = new Tone.PluckSynth({ attackNoise: 1, dampening: 2000, resonance: 0.7, volume: -10 }).toDestination();
+        const polySynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 0.5 }, volume: -10 }).toDestination();
+        const bassSynth = new Tone.MembraneSynth({ volume: -5, envelope: { attack: 0.01, decay: 0.4, sustain: 0.1, release: 0.5 } }).toDestination();
+        const trollSynth = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: 0.05, decay: 0.4, sustain: 0.0, release: 0.2 }, volume: -5 }).toDestination();
+
+        let melodyPart = null;
+        let bassLoop = null;
+
+        function setupBGM() {
+            if (!bassLoop) {
+                bassLoop = new Tone.Loop(time => {
+                    bassSynth.triggerAttackRelease("C2", "8n", time);
+                }, "quarter").start(0);
+
+                const melodyNotes = ["C4", "E4", "G4", "A4", "G4", "E4", "C4", "rest"];
+                melodyPart = new Tone.Sequence((time, note) => {
+                    if (note !== "rest") {
+                        polySynth.triggerAttackRelease(note, "4n", time);
+                    }
+                }, melodyNotes, "2n").start(0);
+
+                Tone.Transport.bpm.value = 80;
+                Tone.Transport.loop = true;
+                Tone.Transport.loopEnd = '4m';
+            }
+        }
+
+        // --- SFX Functions (Same as before) ---
+        function sfx_hitBlock() { 
+             if (isAudioReady) metalSynth.triggerAttackRelease("C3", "32n"); 
+        }
+        function sfx_critHit() { 
+            if (isAudioReady) metalSynth.triggerAttackRelease("G4", "16n"); 
+        }
+        function sfx_upgrade() { 
+            if (isAudioReady) pluckSynth.triggerAttackRelease(["C5", "E5", "G5"], "8n"); 
+        }
+        function sfx_reset() {
+            if (!isAudioReady) return;
+            polySynth.triggerAttackRelease(["E4", "C4"], "4n");
+        }
+        function sfx_rebirth() {
+            if (!isAudioReady) return;
+             pluckSynth.triggerAttackRelease(["C6", "G6", "C7"], "4n"); 
+        }
+        function sfx_troll() {
+            if (isAudioReady) {
+                trollSynth.triggerAttackRelease("4n");
+                metalSynth.triggerAttackRelease("C1", "8n");
+            }
+        }
+        function sfx_sevenSevenSeven() {
+             if (isAudioReady) {
+                polySynth.triggerAttackRelease(["C6", "E6", "G6", "B6"], "4n");
+            }
+        }
+
+        function initializeAudio() {
+             if (isAudioReady) return;
+             Tone.start().then(() => {
+                isAudioReady = true;
+                setupBGM();
+                Tone.Transport.start();
+                console.log("Audio Context Started and BGM running.");
+            }).catch(e => console.error("Could not start audio context:", e));
+        }
+        
+        // --- Stat Calculation Logic ---
+
+        /**
+         * Calculates all damage and crit stats based on levels and multipliers.
+         */
+        function calculateCurrentStats() {
+            // 1. Calculate base stats (before multipliers)
+            const baseDmg = PICKAXE_BASE_DAMAGE + (pickaxeLevel * UPGRADE_DAMAGE_BOOST);
+            const baseCrit = 0.1 + (pickaxeLevel * 0.01); 
+            // NEW: Calculate base auto-clicker damage
+            const baseAutoDmg = autoClickerLevel * AUTO_CLICKER_DAMAGE_BOOST;
+
+            // 2. Calculate Total Permanent Multipliers
+            totalDamageMultiplier = 1.0 + (powerCoreUpgrades * (PERM_CORE_DMG_MULTIPLIER_BOOST - 1.0));
+            totalCritMultiplier = 1.0 + (powerCoreUpgrades * (PERM_CORE_DMG_MULTIPLIER_BOOST - 1.0));
+            
+            // 3. Apply Permanent Multipliers
+            PICKAXE_DAMAGE = Math.round(baseDmg * totalDamageMultiplier);
+            // Auto-clicker damage is also boosted by the permanent core
+            AUTO_CLICKER_DAMAGE = Math.round(baseAutoDmg * totalDamageMultiplier);
+            CRIT_CHANCE = Math.min(1.0, baseCrit * totalCritMultiplier); 
+        }
+
+        // --- Passive Damage Loop (NEW) ---
+        let autoClickerInterval = null;
+
+        /**
+         * The main game loop for passive damage application.
+         */
+        function startAutoClickerLoop() {
+            if (autoClickerInterval) {
+                clearInterval(autoClickerInterval); // Clear old interval if it exists
+            }
+            
+            // Runs every 1 second (1000ms)
+            autoClickerInterval = setInterval(() => {
+                if (AUTO_CLICKER_DAMAGE > 0 && currentHealth > 0) {
+                    // Apply damage without a crit check or SFX/animation for passive damage
+                    currentHealth -= AUTO_CLICKER_DAMAGE;
+                    
+                    // Show small floating text for passive damage
+                    showFloatingText(`-${AUTO_CLICKER_DAMAGE.toLocaleString()}`, false, '#00ffff', true);
+
+                    if (currentHealth <= 0) {
+                        currentHealth = 0; 
+                        updateBlockVisuals(); 
+                        breakBlock();
+                    } else {
+                        updateBlockVisuals();
+                    }
+                }
+            }, 1000); 
+            console.log("Auto-Clicker Loop Started.");
+        }
+
+        // --- Animations ---
+        // (animateRockPop, animatePickaxe, applyDamage, showFloatingText, hitBlock functions remain mostly the same, 
+        // with showFloatingText updated to handle passive damage text styling)
+        
+        function animateRockPop(event) {
+            // ... (rock fragment animation code) ...
+            const rockFragment = document.createElement('div');
+            rockFragment.className = 'rock-fragment-animation';
+            
+            const blockAreaRect = blockArea.getBoundingClientRect();
+            
+            const x = event.clientX - blockAreaRect.left;
+            const y = event.clientY - blockAreaRect.top;
+            
+            rockFragment.style.left = `${x}px`;
+            rockFragment.style.top = `${y}px`;
+
+            const endX = (Math.random() * 80 - 40) + 'px'; 
+            const endY = -(Math.random() * 50 + 50) + 'px'; 
+            
+            rockFragment.style.setProperty('--end-x', endX);
+            rockFragment.style.setProperty('--end-y', endY);
+            
+            blockArea.appendChild(rockFragment);
+            
+            setTimeout(() => {
+                rockFragment.remove();
+            }, 500);
+        }
+        
+        function animatePickaxe(event) {
+            // ... (pickaxe animation code) ...
+            const pickaxeContainer = document.createElement('div');
+            pickaxeContainer.className = 'pickaxe-animation';
+            
+            const pickaxeImage = document.createElement('img');
+            pickaxeImage.src = PICKAXE_IMAGE_URL;
+            pickaxeImage.alt = "Mining Pickaxe";
+            pickaxeImage.onerror = () => { console.error("Failed to load pickaxe image at path:", PICKAXE_IMAGE_URL); }; 
+            pickaxeImage.className = 'w-full h-full object-contain'; 
+            
+            pickaxeContainer.appendChild(pickaxeImage);
+
+            const blockAreaRect = blockArea.getBoundingClientRect();
+            
+            const x = event.clientX - blockAreaRect.left;
+            const y = event.clientY - blockAreaRect.top;
+            
+            pickaxeContainer.style.left = `${x}px`;
+            pickaxeContainer.style.top = `${y}px`;
+            
+            blockArea.appendChild(pickaxeContainer);
+            
+            setTimeout(() => {
+                pickaxeContainer.remove();
+            }, 300);
+        }
+
+        function applyDamage(damage, isCrit, event) {
+            if (currentHealth <= 0) return;
+
+            currentHealth -= damage;
+            
+            if (isCrit) {
+                sfx_critHit();
+                showFloatingText(`CRIT! ${damage.toLocaleString()}`, true, '#ffcc00');
+            } else {
+                sfx_hitBlock();
+            }
+            
+            animatePickaxe(event); 
+            animateRockPop(event); 
+
+            // Visual feedback
+            blockElement.style.transform = 'scale(0.95)';
+            setTimeout(() => { blockElement.style.transform = 'scale(1)'; }, 50);
+
+            if (currentHealth <= 0) {
+                currentHealth = 0; 
+                updateBlockVisuals(); 
+                breakBlock();
+            } else {
+                updateBlockVisuals();
+            }
+        }
+
+        /**
+         * Shows floating damage/crit text near the block.
+         * @param {boolean} isPassive If true, uses a smaller text style for passive damage.
+         */
+        function showFloatingText(text, isCrit, color = '#ffffff', isPassive = false) {
+            const floatingText = document.createElement('div');
+            floatingText.textContent = text;
+            floatingText.className = 'crit-text absolute pointer-events-none';
+            
+            if (isCrit) {
+                floatingText.classList.add('font-extrabold', 'text-4xl');
+            } else if (isPassive) {
+                 // Smaller, less obtrusive text for passive damage
+                floatingText.classList.add('text-md', 'font-semibold');
+                floatingText.style.animationDuration = '0.5s'; // Faster fade for passive
+            } else {
+                floatingText.classList.add('text-lg');
+            }
+            
+            floatingText.style.color = color;
+            floatingText.style.textShadow = `0 0 10px ${color}`;
+
+            const offsetX = Math.random() * 40 - 20;
+            const offsetY = Math.random() * 40 - 20;
+
+            floatingText.style.top = `50%`;
+            floatingText.style.left = `50%`;
+            floatingText.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+
+            blockArea.appendChild(floatingText);
+
+            setTimeout(() => {
+                floatingText.remove();
+            }, isPassive ? 500 : 800);
+        }
+        
+        function hitBlock(event) {
+            if (!isAudioReady) {
+                initializeAudio();
+            }
+
+            if (blockElement) {
+                const isCrit = Math.random() < CRIT_CHANCE; 
+                const damage = isCrit ? PICKAXE_DAMAGE * CRIT_MULTIPLIER : PICKAXE_DAMAGE;
+                
+                applyDamage(damage, isCrit, event); 
+            }
+        }
+
+        function breakBlock() {
+            const baseReward = BASE_SCORE_REWARD + (blockLevel * SCORE_SCALING);
+            let scoreReward = Math.round(baseReward * scoreMultiplier);
+            let specialEffectAmount = 0;
+            const blockType = currentBlockType; 
+
+            if (blockType === '777') { 
+                 scoreReward = scoreReward * SEVEN_SEVEN_SEVEN_MULTIPLIER;
+            } else if (blockType === 'Troll') {
+                specialEffectAmount = Math.round(score * TROLL_DEDUCTION_PERCENT);
+                score = Math.max(0, score - specialEffectAmount); 
+            }
+            
+            if (blockType !== 'Troll') {
+                score += scoreReward;
+            }
+            
+            scoreValueElement.textContent = score.toLocaleString();
+            
+            const textElement = blockElement.querySelector('.block-face p:first-child');
+            const healthContainer = blockElement.querySelector('.health-bar-container');
+            
+            healthContainer.style.display = 'none';
+            blockElement.onclick = null; 
+            
+            if (blockType === '777') {
+                showFloatingText(`JACKPOT! +${scoreReward.toLocaleString()} Score!`, true, '#ff00ff'); 
+                sfx_sevenSevenSeven(); 
+                textElement.textContent = `777 JACKPOT!`;
+            } else if (blockType === 'Troll') {
+                showFloatingText(`TROLL! -${specialEffectAmount.toLocaleString()} Score!`, true, '#f87171'); 
+                sfx_troll(); 
+                textElement.textContent = `TROLL! SCORE LOST.`;
+            } else {
+                textElement.textContent = `+${scoreReward.toLocaleString()} SCORE!`;
+            }
+            
+            blockElement.style.opacity = '0'; 
+
+            blockLevel++;
+
+            updateShopUI(); 
+
+            setTimeout(() => { 
+                try {
+                    createNewBlock();
+                } catch (error) {
+                    console.error("CRITICAL ERROR: Failed to create new block! Game halted.", error);
+                }
+            }, 300); 
+        }
+
+        // --- Utility Functions ---
+
+        function getBlockVisuals(type) {
+            switch (type) {
+                case 'Troll':
+                    return { text: "TROLL BLOCK! (DANGER)", color: '#ef4444', subColor: 'text-red-300' };
+                case '777':
+                    return { text: "!!! 777 JACKPOT ORE !!!", color: '#d946ef', subColor: 'text-fuchsia-300' };
+                default: // Standard
+                    return { text: "Ore Block", color: '#facc15', subColor: 'text-yellow-300' };
+            }
+        }
+
+        function determineBlockType() {
+            const roll = Math.random();
+            let cumulativeChance = 0;
+            
+            cumulativeChance += SEVEN_SEVEN_SEVEN_CHANCE;
+            if (roll < cumulativeChance) { return '777'; } 
+            
+            cumulativeChance += TROLL_CHANCE;
+            if (roll < cumulativeChance) { return 'Troll'; }
+            
+            return 'Standard';
+        }
+
+        function createNewBlock() {
+            if (blockElement) {
+                blockElement.remove();
+            }
+
+            currentBlockType = determineBlockType(); 
+
+            const dynamicHealth = BASE_BLOCK_HEALTH + (blockLevel * HEALTH_SCALING);
+            maxHealth = dynamicHealth; 
+            currentHealth = dynamicHealth;
+
+            blockElement = document.createElement('div');
+            blockElement.id = 'currentBlock';
+            blockElement.className = 'block w-full max-w-xs h-32 md:h-48 flex flex-col justify-center items-center rounded-xl shadow-inner p-3';
+            blockElement.onclick = hitBlock; 
+            
+            const faceContainer = document.createElement('div');
+            faceContainer.className = 'block-face w-full h-full flex flex-col justify-center items-center';
+            blockElement.appendChild(faceContainer);
+
+            const textDisplay = document.createElement('div');
+            textDisplay.className = 'text-center';
+            faceContainer.appendChild(textDisplay);
+
+            const healthContainer = document.createElement('div');
+            healthContainer.className = 'health-bar-container w-3/4';
+
+            healthBarElement = document.createElement('div');
+            healthBarElement.className = 'health-bar';
+            
+            healthContainer.appendChild(healthBarElement);
+
+            blockArea.appendChild(blockElement);
+            faceContainer.appendChild(healthContainer);
+
+            updateBlockVisuals();
+        }
+
+        function updateBlockVisuals() {
+            if (!blockElement) return;
+
+            const healthPercentage = (currentHealth / maxHealth) * 100;
+            const healthContainer = blockElement.querySelector('.health-bar-container');
+            const textContainer = blockElement.querySelector('div.text-center');
+            const visuals = getBlockVisuals(currentBlockType);
+
+            if (currentHealth > 0) {
+                healthContainer.style.display = 'block'; 
+            }
+            
+            textContainer.innerHTML = `
+                <p class="text-xl font-bold ${visuals.subColor}">${visuals.text}</p>
+                <p class="text-sm font-semibold text-white mt-1">Level ${blockLevel} (${Math.max(0, currentHealth).toLocaleString()} / ${maxHealth.toLocaleString()} HP)</p>
+            `;
+
+            healthBarElement.style.width = `${healthPercentage}%`;
+        }
+
+        function calculateNextCost() {
+            const cost = UPGRADE_BASE_COST * Math.pow(UPGRADE_COST_MULTIPLIER, pickaxeLevel);
+            return Math.round(cost);
+        }
+        
+        /**
+         * Calculates the cost for the next Auto-Clicker upgrade.
+         */
+        function calculateNextAutoClickerCost() {
+            const cost = AUTO_CLICKER_BASE_COST * Math.pow(AUTO_CLICKER_COST_MULTIPLIER, autoClickerLevel);
+            return Math.round(cost);
+        }
+
+        function calculateRebirthCost() {
+            const cost = REBIRTH_BASE_COST * Math.pow(REBIRTH_COST_MULTIPLIER, rebirths);
+            return Math.round(cost);
+        }
+
+        /**
+         * Updates the Shop UI, including the new Auto-Clicker section.
+         */
+        function updateShopUI() {
+            const nextUpgradeCost = calculateNextCost();
+            const nextAutoClickerCost = calculateNextAutoClickerCost();
+            const nextRebirthCost = calculateRebirthCost();
+
+            calculateCurrentStats();
+            scoreMultiplier = Math.pow(REBIRTH_MULTIPLIER_BOOST, rebirths);
+
+
+            // --- Update Stats Display ---
+            pickaxeLevelValueElement.textContent = pickaxeLevel.toLocaleString();
+            damageValueElement.textContent = PICKAXE_DAMAGE.toLocaleString();
+            autoDamageValueElement.textContent = `${AUTO_CLICKER_DAMAGE.toLocaleString()}`; // NEW
+            multiplierValueElement.textContent = `${scoreMultiplier.toFixed(2)}x`;
+            damageBoostValueElement.textContent = UPGRADE_DAMAGE_BOOST;
+            
+            rebirthsCountElement.textContent = rebirths;
+            rebirthMultiplierEffectElement.textContent = `${scoreMultiplier.toFixed(2)}x`;
+            critChanceValueElement.innerHTML = `${Math.min(100, (CRIT_CHANCE * 100)).toFixed(0)}%`;
+            
+            // Auto-Clicker Shop UI
+            autoClickerLevelValueElement.textContent = autoClickerLevel.toLocaleString();
+            autoClickerDamageValueElement.textContent = AUTO_CLICKER_DAMAGE.toLocaleString();
+            autoClickerCostElement.textContent = nextAutoClickerCost.toLocaleString();
+
+
+            // --- Pickaxe Shop Logic ---
+            upgradeCostElement.textContent = nextUpgradeCost.toLocaleString();
+            // ... (pickaxe button logic remains the same) ...
+            if (score >= nextUpgradeCost) {
+                upgradePickaxeButton.disabled = false;
+                upgradePickaxeButton.textContent = `Buy Upgrade (Cost: ${nextUpgradeCost.toLocaleString()} Score)`;
+                upgradePickaxeButton.classList.remove('bg-gray-500');
+                upgradePickaxeButton.classList.add('bg-green-600');
+            } else {
+                upgradePickaxeButton.disabled = true;
+                upgradePickaxeButton.textContent = `Need ${(nextUpgradeCost - score).toLocaleString()} more Score`;
+                upgradePickaxeButton.classList.remove('bg-green-600');
+                upgradePickaxeButton.classList.add('bg-gray-500');
+            }
+
+
+            // --- Auto-Clicker Shop Logic (NEW) ---
+            if (score >= nextAutoClickerCost) {
+                upgradeAutoClickerButton.disabled = false;
+                upgradeAutoClickerButton.textContent = `Buy Auto-Clicker (Cost: ${nextAutoClickerCost.toLocaleString()} Score)`;
+                upgradeAutoClickerButton.classList.remove('bg-gray-500');
+                upgradeAutoClickerButton.classList.add('bg-cyan-600');
+            } else {
+                upgradeAutoClickerButton.disabled = true;
+                upgradeAutoClickerButton.textContent = `Need ${(nextAutoClickerCost - score).toLocaleString()} more Score`;
+                upgradeAutoClickerButton.classList.remove('bg-cyan-600');
+                upgradeAutoClickerButton.classList.add('bg-gray-500');
+            }
+
+
+            // --- Power Core Shop Logic (Same as before) ---
+            powerCoreMultiplierValueElement.textContent = `${totalDamageMultiplier.toFixed(1)}x`;
+            powerCoreUpgradesCountElement.textContent = powerCoreUpgrades;
+            
+            if (score >= PERM_CORE_COST) {
+                upgradePowerCoreButton.disabled = false;
+                upgradePowerCoreButton.textContent = `Buy Power Core (Cost: ${PERM_CORE_COST.toLocaleString()} Score)`;
+                upgradePowerCoreButton.classList.remove('bg-gray-500');
+                upgradePowerCoreButton.classList.add('bg-blue-600');
+            } else {
+                upgradePowerCoreButton.disabled = true;
+                upgradePowerCoreButton.textContent = `Need ${(PERM_CORE_COST - score).toLocaleString()} more Score`;
+                upgradePowerCoreButton.classList.remove('bg-blue-600');
+                upgradePowerCoreButton.classList.add('bg-gray-500');
+            }
+
+            // --- Rebirth Logic (Same as before) ---
+            rebirthCostElement.textContent = nextRebirthCost.toLocaleString();
+
+            if (score >= nextRebirthCost) {
+                rebirthButton.disabled = false;
+                rebirthButton.textContent = `Rebirth for ${REBIRTH_MULTIPLIER_BOOST}x Bonus!`;
+                rebirthButton.classList.add('bg-yellow-400');
+                rebirthButton.classList.remove('bg-yellow-600', 'bg-gray-500');
+            } else {
+                rebirthButton.disabled = true;
+                rebirthButton.textContent = `Need ${(nextRebirthCost - score).toLocaleString()} more Score`;
+                rebirthButton.classList.remove('bg-yellow-400', 'bg-yellow-600');
+                rebirthButton.classList.add('bg-gray-500');
+            }
+        }
+
+        // --- Upgrade Functions ---
+
+        function upgradePickaxe() {
+            if (!isAudioReady) {
+                 initializeAudio();
+            }
+
+            const cost = calculateNextCost();
+
+            if (score >= cost) {
+                upgradePickaxeButton.disabled = true; 
+                score -= cost;
+                pickaxeLevel++;
+                calculateCurrentStats();
+                scoreValueElement.textContent = score.toLocaleString();
+                sfx_upgrade(); 
+                
+                // Visual feedback
+                upgradePickaxeButton.classList.remove('bg-green-600');
+                upgradePickaxeButton.classList.add('bg-yellow-400', 'text-black');
+                setTimeout(() => {
+                    upgradePickaxeButton.classList.remove('bg-yellow-400', 'text-black');
+                }, 100);
+
+                updateShopUI();
+            }
+        }
+        
+        /**
+         * Upgrades the passive auto-clicker damage.
+         */
+        function upgradeAutoClicker() {
+            if (!isAudioReady) {
+                 initializeAudio();
+            }
+
+            const cost = calculateNextAutoClickerCost();
+
+            if (score >= cost) {
+                upgradeAutoClickerButton.disabled = true; 
+                score -= cost;
+                autoClickerLevel++;
+                calculateCurrentStats();
+                scoreValueElement.textContent = score.toLocaleString();
+                sfx_upgrade(); 
+                
+                // Visual feedback
+                upgradeAutoClickerButton.classList.remove('bg-cyan-600');
+                upgradeAutoClickerButton.classList.add('bg-yellow-400', 'text-black');
+                setTimeout(() => {
+                    upgradeAutoClickerButton.classList.remove('bg-yellow-400', 'text-black');
+                }, 100);
+                
+                // Restart loop to apply new damage, although calculateCurrentStats updates AUTO_CLICKER_DAMAGE
+                startAutoClickerLoop(); 
+                updateShopUI();
+            }
+        }
+        
+        function upgradePowerCore() {
+            if (!isAudioReady) {
+                initializeAudio();
+            }
+
+            if (score >= PERM_CORE_COST) {
+                upgradePowerCoreButton.disabled = true; 
+                
+                score -= PERM_CORE_COST;
+                powerCoreUpgrades++;
+                
+                calculateCurrentStats();
+
+                scoreValueElement.textContent = score.toLocaleString();
+                sfx_upgrade(); 
+
+                upgradePowerCoreButton.classList.remove('bg-blue-600');
+                upgradePowerCoreButton.classList.add('bg-yellow-400', 'text-black');
+                setTimeout(() => {
+                    upgradePowerCoreButton.classList.remove('bg-yellow-400', 'text-black');
+                }, 100);
+                
+                // Update auto-clicker loop damage instantly
+                startAutoClickerLoop();
+                updateShopUI();
+            }
+        }
+
+        function doRebirth() {
+            if (!isAudioReady) {
+                 initializeAudio();
+            }
+
+            const cost = calculateRebirthCost();
+
+            if (score >= cost) {
+                sfx_rebirth();
+
+                // 1. Apply permanent multiplier
+                scoreMultiplier *= REBIRTH_MULTIPLIER_BOOST;
+                rebirths++;
+                
+                // 2. Reset soft progress
+                score = 0;
+                pickaxeLevel = 0;
+                autoClickerLevel = 0; // NEW: Reset auto-clicker level
+                blockLevel = 1;
+                
+                // 3. Recalculate stats 
+                calculateCurrentStats();
+
+                // 4. Restart game state & loop
+                scoreValueElement.textContent = score.toLocaleString();
+                createNewBlock();
+                startAutoClickerLoop(); // Restart loop with reset damage
+                updateShopUI();
+            }
+        }
+
+        function hardResetGame() {
+            sfx_reset(); 
+
+            if (isAudioReady) {
+                 Tone.Transport.stop();
+            }
+            
+            // Reset ALL state
+            isAudioReady = false; 
+            score = 0;
+            pickaxeLevel = 0;
+            autoClickerLevel = 0; // NEW: Reset auto-clicker level
+            blockLevel = 1;
+            scoreMultiplier = 1.0;
+            rebirths = 0;
+            powerCoreUpgrades = 0; 
+
+            calculateCurrentStats();
+
+            tutorialCard.style.display = 'block';
+            
+            scoreValueElement.textContent = score.toLocaleString();
+            
+            createNewBlock();
+            startAutoClickerLoop(); // Initialize loop (damage will be 0)
+            updateShopUI();
+        }
+        
+        // --- Dev Controls Functions ---
+        function checkPassword() {
+            const enteredPassword = devPasswordInput.value.trim();
+            
+            if (enteredPassword === DEV_PASSWORD) {
+                cheatButtonsContainer.style.display = 'flex'; 
+                devPasswordInput.style.display = 'none';
+                unlockDevButton.style.display = 'none';
+                showFloatingText('Dev Unlocked!', false, '#00ff00');
+                console.log(`[DevTools] Unlocked with password: ${enteredPassword}`);
+            } else {
+                devPasswordInput.value = ''; 
+                showFloatingText('Wrong Password!', false, '#ff0000');
+                console.warn(`[DevTools] Failed unlock attempt with: ${enteredPassword}`);
+            }
+        }
+
+        function addScoreCheat(amount) {
+            score += amount;
+            scoreValueElement.textContent = score.toLocaleString();
+            updateShopUI();
+            showFloatingText(`+${amount.toLocaleString()} CHEAT!`, false, '#00ff00');
+        }
+
+        function skipLevelCheat() {
+            blockLevel++;
+            createNewBlock();
+            updateShopUI();
+            showFloatingText(`SKIP LEVEL!`, false, '#00ffff');
+        }
+        
+        function doubleScoreCheat() {
+            score = Math.floor(score * 2);
+            scoreValueElement.textContent = score.toLocaleString();
+            updateShopUI();
+            showFloatingText(`SCORE DOUBLED!`, false, '#9333ea'); 
+        }
+
+        /**
+         * Sets all permanent and semi-permanent levels (includes Auto-Clicker) to MAX_LEVEL.
+         */
+        function maxAllCheat() {
+            pickaxeLevel = MAX_LEVEL;
+            autoClickerLevel = MAX_LEVEL; // NEW: Max the auto-clicker level
+            powerCoreUpgrades = MAX_LEVEL;
+            rebirths = MAX_LEVEL;
+            blockLevel = 1; 
+            
+            calculateCurrentStats();
+            scoreMultiplier = Math.pow(REBIRTH_MULTIPLIER_BOOST, rebirths);
+            
+            score = 999999999999999999; 
+
+            createNewBlock();
+            startAutoClickerLoop(); // Restart loop with maxed damage
+            updateShopUI();
+            showFloatingText(`MAX ALL (x${MAX_LEVEL})!`, true, '#ffeb3b'); 
+        }
+
+
+        // --- Event Listeners and Initialization ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Game Listeners
+            resetButton.addEventListener('click', hardResetGame);
+            upgradePickaxeButton.addEventListener('click', upgradePickaxe);
+            upgradeAutoClickerButton.addEventListener('click', upgradeAutoClicker); // NEW listener
+            upgradePowerCoreButton.addEventListener('click', upgradePowerCore);
+            rebirthButton.addEventListener('click', doRebirth);
+            dismissTutorialButton.addEventListener('click', () => {
+                tutorialCard.style.display = 'none';
+            });
+            
+            // Dev Control Listeners
+            devPasswordInput.addEventListener('input', (e) => {
+                console.log('[Dev Password Input]:', e.target.value);
+            });
+
+            unlockDevButton.addEventListener('click', checkPassword);
+            devPasswordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    checkPassword();
+                }
+            });
+            
+            addScoreButton.addEventListener('click', () => addScoreCheat(50000));
+            skipLevelButton.addEventListener('click', skipLevelCheat);
+            doubleScoreButton.addEventListener('click', doubleScoreCheat); 
+            maxAllButton.addEventListener('click', maxAllCheat); 
+            
+            // Initial setup
+            hardResetGame(); 
+        });
+
+    </script>
+</body>
+</html>
